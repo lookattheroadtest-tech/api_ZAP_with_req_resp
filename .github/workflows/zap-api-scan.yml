@@ -27,6 +27,7 @@ jobs:
       - name: Run ZAP API Scan
         run: |
           docker exec zap zap-api-scan.py \
+            -d http://localhost:8090 \
             -t /zap/wrk/properties_zap.json \
             -f openapi \
             -r full-api-scan.html \
