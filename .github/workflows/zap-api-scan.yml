@@ -42,7 +42,9 @@ jobs:
 
       - name: Export HAR (ACTUAL request & response)
         run: |
-          docker exec zap zap.sh -cmd -export-har /zap/wrk/zap-traffic.har
+          docker exec zap curl \
+            "http://localhost:8080/OTHER/core/other/har/?formMethod=GET" \
+            -o /zap/wrk/zap-traffic.har
 
       - name: Upload ZAP report
         uses: actions/upload-artifact@v4
