@@ -1,4 +1,4 @@
-name: ZAP Authenticated API Scan (Full Req/Resp)
+name: ZAP Authenticated API Scan
 
 on:
   workflow_dispatch:
@@ -15,35 +15,42 @@ jobs:
         run: |
           echo "TOKEN=$(cat auth.txt | tr -d '\n')" >> $GITHUB_ENV
 
-      - name: Create output directory
-        run: mkdir -p zap-output
-
-      - name: Run ZAP API Scan (with full request/response)
+      - name: Run ZAP API Scan
         run: |
-          docker run --rm \
+          docker run --name zap --rm \
             --user 0:0 \
             -v "$PWD:/zap/wrk" \
-            ghcr.io/zaproxy/zaproxy:stable \
+            -t ghcr.io/zaproxy/zaproxy:stable \
             zap-api-scan.py \
             -t /zap/wrk/properties_zap.json \
             -f openapi \
-            -x /zap/wrk/zap-output/zap-report.xml \
-            -r /zap/wrk/zap-output/zap-report.html \
+            -r full-api-scan.html \
+            -x full-api-scan.xml \
             -z "
+              -config api.disablekey=true
+              -config api.addrs.addr.name=.*
+              -config api.addrs.addr.regex=true
+
               -config replacer.full_list(0).description=auth
               -config replacer.full_list(0).enabled=true
               -config replacer.full_list(0).matchtype=REQ_HEADER
               -config replacer.full_list(0).matchstr=Authorization
               -config replacer.full_list(0).replacement=${TOKEN}
-
-              -config reports.include.request=true
-              -config reports.include.response=true
-              -config reports.include.headers=true
-              -config reports.include.cookies=true
             " || true
 
-      - name: Upload ZAP reports
+      - name: Export HAR (actual request & response)
+        run: |
+          docker run --rm \
+            -v "$PWD:/zap/wrk" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-cli --zap-url http://localhost -p 8080 \
+            export har /zap/wrk/zap-traffic.har || true
+
+      - name: Upload ZAP report
         uses: actions/upload-artifact@v4
         with:
-          name: zap-api-full-report
-          path: zap-output/
+          name: zap-api-report
+          path: |
+            full-api-scan.html
+            full-api-scan.xml
+            zap-traffic.har
